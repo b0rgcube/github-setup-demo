@@ -1,0 +1,35 @@
+[project]
+name = "weatherbot"
+version = "0.1.0"
+description = "Tiny weather CLI demo for the github-setup workflow."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "ruff>=0.1.0",
+]
+
+[project.scripts]
+weatherbot = "weatherbot.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+  "scenario: bind a test to a spec scenario id (e.g. SC-001-01)",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

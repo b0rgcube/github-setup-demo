@@ -1,0 +1,105 @@
+name: Bug
+description: Something is broken or not behaving as the spec / acceptance criteria say it should.
+title: "[Bug] "
+labels: ["bug", "P3 — someday"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for defects. See `docs/HOTFIX_AND_BUGS.md` for the full path.
+
+        For P0 (production-broken), don't only file this — also ping on-call / team chat.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity (your assessment — PO will confirm)
+      options:
+        - "P0 — production broken; users impacted"
+        - "P1 — user-facing defect; degraded experience"
+        - "P2 — internal-facing defect; minor user-facing issue"
+        - "P3 — cosmetic; rare edge case"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stack
+    attributes:
+      label: Stack
+      options:
+        - backend
+        - frontend
+        - worker
+        - infra
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: violated_spec
+    attributes:
+      label: Violated spec / scenario
+      description: |
+        F-{AREA}-{NNN} or SC-{NNN}-{NN} if known. "Unknown" or "no spec" if not.
+      placeholder: F-CCS-042 / SC-042-08
+    validations:
+      required: false
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Log in as user X
+        2. Navigate to /snippets/42
+        3. Click "Rotate"
+        4. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - production
+        - staging
+        - dev
+        - local
+    validations:
+      required: true
+
+  - type: input
+    id: first_seen
+    attributes:
+      label: First seen
+      description: Date or commit SHA if known.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots / error output
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **For P0:** also alert the team in chat. Don't rely on the issue alone.

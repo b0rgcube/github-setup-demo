@@ -1,0 +1,107 @@
+name: User story
+description: A unit of product work small enough that one developer can finish it in a sprint.
+title: "[Story] "
+labels: ["story", "P3 — someday"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for product-driven work. For bugs, use the Bug template; for
+        platform / refactor work, use the Tech-debt template.
+
+        See `docs/WORKFLOW.md` for what happens after this issue is created.
+
+  - type: input
+    id: feature_id
+    attributes:
+      label: Feature ID
+      description: F-{AREA}-{NNN} if a spec exists or will exist. Leave blank if not yet assigned.
+      placeholder: F-CCS-042
+    validations:
+      required: false
+
+  - type: input
+    id: linked_spec
+    attributes:
+      label: Linked spec
+      description: Path to spec file, if one exists.
+      placeholder: specs/F-CCS-042-rotate-snippet.md
+    validations:
+      required: false
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User story
+      description: |
+        "As a <user>, I want <capability>, so that <outcome>."
+        Keep it plain language. Don't smuggle implementation choices into the story.
+      placeholder: |
+        As a content editor, I want to rotate a snippet to a new version while
+        preserving the prior version's history, so that I can roll back if a
+        change breaks downstream consumers.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Bullet list. Each criterion will map to one or more scenario IDs (SC-NNN-NN)
+        in the spec. Plain English; don't write tests here.
+      placeholder: |
+        - User can trigger a rotation from the snippet detail page.
+        - Prior version remains queryable for at least 30 days.
+        - Rotation fails gracefully if another rotation is in flight.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: |
+        Explicitly what this story does NOT cover. Saves enormous rework.
+        Even "(intentionally none — this is a small, fully-scoped change)" is a valid answer.
+      placeholder: |
+        - Multi-tenant rotation (separate story).
+        - UI redesign of the snippet detail page.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Code touched
+      description: Informational; not used for review routing on this team.
+      multiple: true
+      options:
+        - backend
+        - frontend
+        - worker
+        - infra
+        - docs
+        - data
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / open questions
+      description: |
+        Optional. Anything the PO / dev / reviewer should know. Open questions
+        with [ASSUMPTION] or [UNKNOWN] tags are welcome.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **Next steps:**
+        - PO triages → sets priority, moves to `Triaged`.
+        - Refinement happens in this issue's comments — not in DMs.
+        - When sharp, the story moves to `Ready` and is eligible for sprint planning.

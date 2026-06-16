@@ -1,0 +1,105 @@
+name: spec-lint
+
+# Mechanical traceability check.
+# Refuses to let the PR merge if scenario IDs in tests reference specs that
+# don't exist, or if approved/implemented specs have scenarios with no
+# corresponding test marker.
+#
+# Pure grep over the repo. Cheap, fast, language-agnostic shape.
+#
+# CUSTOMIZE ME:
+#   - The grep patterns below match `@pytest.mark.scenario("SC-NNN-NN")` and
+#     test-name patterns like `test_foo_sc_042_03`. If your stack uses
+#     different markers, edit the SCENARIO_MARKER_REGEX accordingly.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "specs/**"
+      - "**/tests/**"
+      - "**/*_test.py"
+      - "**/*.test.ts"
+      - "**/*.test.js"
+      - "**/*.spec.ts"
+      - "**/*.spec.js"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scenario-id-traceability:
+    name: scenario-id-traceability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find scenario IDs in specs
+        id: spec-ids
+        run: |
+          # All SC-NNN-NN ids defined in any spec file.
+          mkdir -p /tmp/lint
+          if [ -d specs ]; then
+            grep -rohE '\bSC-[0-9]+-[0-9]+\b' specs/ | sort -u > /tmp/lint/spec-ids.txt
+          else
+            : > /tmp/lint/spec-ids.txt
+          fi
+          wc -l /tmp/lint/spec-ids.txt
+
+      - name: Find scenario IDs referenced in tests
+        id: test-ids
+        run: |
+          # Match: @pytest.mark.scenario("SC-NNN-NN")
+          # Match: function/test names containing _sc_NNN_NN_ or sc-NNN-NN
+          # Match: scenario id in describe()/it() string literals
+          mkdir -p /tmp/lint
+          {
+            grep -rohE '@pytest\.mark\.scenario\("(SC-[0-9]+-[0-9]+)"\)' . 2>/dev/null \
+              | sed -E 's/.*"(SC-[0-9]+-[0-9]+)".*/\1/'
+            grep -rohE '\bsc[_-][0-9]+[_-][0-9]+\b' . 2>/dev/null \
+              | tr '[:lower:]' '[:upper:]' | tr '_' '-'
+          } | sort -u > /tmp/lint/test-ids.txt
+          wc -l /tmp/lint/test-ids.txt
+
+      - name: Cross-check — every test-referenced scenario must exist in a spec
+        run: |
+          # IDs referenced by tests but not defined in any spec.
+          comm -23 /tmp/lint/test-ids.txt /tmp/lint/spec-ids.txt > /tmp/lint/orphan-test-ids.txt
+          if [ -s /tmp/lint/orphan-test-ids.txt ]; then
+            echo "ERROR: Tests reference scenario IDs that don't exist in any spec:"
+            cat /tmp/lint/orphan-test-ids.txt
+            echo ""
+            echo "Either add the scenarios to a spec, or fix the test-name typo."
+            exit 1
+          fi
+          echo "OK — every test-referenced scenario id exists in a spec."
+
+      - name: Cross-check — approved specs must have all scenarios covered
+        run: |
+          # Find spec files in approved or implemented status. For each,
+          # verify every SC-NNN-NN inside has at least one test reference.
+          fail=0
+          for spec in specs/F-*.md; do
+            [ -f "$spec" ] || continue
+            status=$(awk -F: '/^status:/{gsub(/[ \t]/,"",$2); print $2; exit}' "$spec")
+            case "$status" in
+              approved|implemented|in-progress) ;;
+              *) continue ;;
+            esac
+            # IDs in this spec
+            ids=$(grep -ohE '\bSC-[0-9]+-[0-9]+\b' "$spec" | sort -u)
+            for id in $ids; do
+              if ! grep -q "^$id$" /tmp/lint/test-ids.txt; then
+                echo "ERROR: $spec ($status) defines $id but no test references it."
+                fail=1
+              fi
+            done
+          done
+          if [ "$fail" -eq 1 ]; then
+            echo ""
+            echo "Approved or implemented specs must have every scenario covered by tests."
+            echo "Either add tests with matching markers, or downgrade spec status to 'draft'."
+            exit 1
+          fi
+          echo "OK — every approved/implemented spec scenario has a test."

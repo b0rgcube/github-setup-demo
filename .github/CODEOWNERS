@@ -1,0 +1,23 @@
+# CODEOWNERS — review distribution for a small team.
+#
+# DEMO NOTE: this repository is a solo demonstration. In real use, the team is
+# 4 people (1 tech lead, 1 dev, 1 senior data scientist, 1 data scientist) and
+# the two senior ICs (tech lead + senior DS) share review authority. Here,
+# `@b0rgcube` stands in for the whole team — branch protection's
+# "require approvals" rule is disabled in this demo because GitHub doesn't
+# allow self-approval on a PR you authored.
+#
+# In a real repo: every PR auto-requests both seniors; either can approve.
+# When one senior is the author, the other reviews — automatic, because
+# GitHub doesn't request review from the PR author.
+
+# Default — every file in the repo
+*                                       @b0rgcube
+
+# Specs and ADRs
+/specs/                                 @b0rgcube
+/docs/adr/                              @b0rgcube
+
+# CI / GitHub configuration
+/.github/workflows/                     @b0rgcube
+/.github/CODEOWNERS                     @b0rgcube

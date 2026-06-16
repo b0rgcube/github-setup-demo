@@ -1,0 +1,69 @@
+name: Tech debt
+description: Refactor, cleanup, or platform-level improvement that isn't a feature.
+title: "[Tech debt] "
+labels: ["tech-debt", "P3 — someday"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tech-debt items have a different shape from stories. We capture the cost of
+        the debt (what's painful) and the proposed remediation (what we'd do), so
+        the PO can assess priority alongside product work.
+
+  - type: textarea
+    id: pain
+    attributes:
+      label: What's painful right now
+      description: |
+        Specific. "The codebase is messy" is not specific. "Every new endpoint
+        re-implements the same auth checks because there's no shared middleware,
+        adding ~30 min per endpoint and a bug surface" is specific.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: Cost of inaction
+      description: |
+        What does this cost the team if we don't fix it? Slowed delivery on future
+        stories? Bug risk? On-call impact? Be honest — vague claims of cost lose
+        the PO's trust.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed remediation
+      description: |
+        Sketch. Not a full spec. Enough for the PO to assess effort relative to
+        the cost above.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Code touched
+      description: Informational; not used for review routing on this team.
+      multiple: true
+      options:
+        - backend
+        - frontend
+        - worker
+        - infra
+        - docs
+        - data
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: |
+        Boundaries on this change. What we are NOT going to refactor while we're in there.
+    validations:
+      required: true

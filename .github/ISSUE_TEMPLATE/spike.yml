@@ -1,0 +1,57 @@
+name: Spike
+description: A time-boxed investigation. Output is a learning, not a feature.
+title: "[Spike] "
+labels: ["spike", "P3 — someday"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A spike is research. The output is a write-up — recommendations, ADR draft,
+        or a refactored issue with a sharper proposal. Spike code does NOT ship to
+        main as-is; if a spike produces shippable code, it gets re-done as a regular
+        story with the full Definition of Done.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+      description: |
+        What are we trying to learn? Phrase as a question with a yes/no or
+        directional answer if possible.
+      placeholder: |
+        Will switching from MongoDB Atlas to a self-hosted MongoDB give us
+        the latency we need on the snippet-rotation endpoint without
+        unacceptable operational overhead?
+    validations:
+      required: true
+
+  - type: input
+    id: timebox
+    attributes:
+      label: Timebox
+      description: How much time are we willing to spend before forcing a decision?
+      placeholder: "3 days"
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Deliverable
+      description: |
+        What artifact will the spike produce? ADR draft? Refactored issue? Benchmark numbers?
+      placeholder: |
+        - Benchmark report comparing latency on both options
+        - ADR draft proposing a path forward
+    validations:
+      required: true
+
+  - type: textarea
+    id: success
+    attributes:
+      label: What "good enough" looks like
+      description: |
+        How do we know the spike is done? Pre-commit the answer to "we'll continue
+        with X if we find Y; we'll pivot to Z if we find W."
+    validations:
+      required: true

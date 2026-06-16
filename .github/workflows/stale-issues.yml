@@ -1,0 +1,35 @@
+name: stale-issues
+
+# Surfaces P3 issues that have had no activity for 90 days.
+# Does NOT auto-close — that loses too many real-but-deferred items.
+# Just labels them as `stale` so the PO can review during quarterly triage.
+
+on:
+  schedule:
+    # Weekly, Monday 09:00 UTC. Adjust to your timezone preference.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  stale-flag:
+    name: flag stale P3 issues
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 90
+          days-before-close: -1                  # Never auto-close
+          only-labels: "P3 — someday"
+          stale-issue-label: "stale"
+          stale-issue-message: |
+            This issue has had no activity for 90 days at P3.
+            PO will review during the next quarterly P3 triage.
+            If this is still relevant, drop a comment to remove staleness.
+          remove-stale-when-updated: true
+          # Don't touch issues with `external-input-needed` — those are
+          # legitimately waiting on someone else.
+          exempt-issue-labels: "external-input-needed,blocked,epic"
