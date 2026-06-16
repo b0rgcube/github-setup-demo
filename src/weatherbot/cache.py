@@ -5,11 +5,15 @@ and stripped). TTL math uses UTC throughout — see SC-002-04. The cache is
 allowed to fail soft: a malformed file or a non-writable cache dir results in
 a no-cache mode rather than a crash, because a degraded cache is much better
 than a broken CLI.
+
+Failure modes are logged at DEBUG so a future on-call can grep for them; we
+don't surface them at INFO to avoid noise on routine "cache miss" paths.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -18,6 +22,8 @@ from pathlib import Path
 from .providers import Reading
 
 DEFAULT_TTL_SECONDS = 600
+
+_log = logging.getLogger(__name__)
 
 
 def _cache_path() -> Path:
@@ -46,7 +52,10 @@ def _load(path: Path) -> dict:
     """Load cache entries; return {} on any failure (SC-002-06)."""
     try:
         return json.loads(path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except FileNotFoundError:
+        return {}
+    except (json.JSONDecodeError, OSError) as e:
+        _log.debug("cache load failed; degrading to empty cache: %s", e)
         return {}
 
 
@@ -55,8 +64,8 @@ def _save(path: Path, data: dict) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2))
-    except OSError:
-        pass  # cache failure must not break the CLI
+    except OSError as e:
+        _log.debug("cache save failed; cache write skipped: %s", e)
 
 
 def get(city: str, *, path: Path | None = None) -> Reading | None:
