@@ -7,8 +7,6 @@ that don't exist in the spec.
 
 from __future__ import annotations
 
-import io
-
 import pytest
 
 from weatherbot.cli import show
