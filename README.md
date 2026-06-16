@@ -19,7 +19,7 @@ If you have 5 minutes:
 - **[An example merged PR](../../pulls?q=is%3Apr+is%3Amerged)** — see the template in action with real commit history and review comments.
 - **[The in-flight PR](../../pulls?q=is%3Apr+is%3Aopen)** — a PR mid-conversation, with review comments awaiting response.
 - **[The spec for F-CORE-001](specs/F-CORE-001-show-weather.md)** — how features are specified before code starts. Note the `SC-001-NN` scenario IDs; tests reference them via `@pytest.mark.scenario("SC-001-01")` markers.
-- **[The Project board](../../projects)** — Backlog → Triaged → Ready → In Progress → Review → Done.
+- **[Issues](../../issues)** — labels do the work of a Project board: priority (`P0`/`P1`/`P2`/`P3`), type (`story`/`bug`/`tech-debt`/`spike`), and code touched (`code: backend`/`code: frontend`/etc.). In real adoption, the team would pair this with a GitHub Project board (Backlog → Triaged → Ready → In Progress → Review → Done); the board wasn't created here because the demo token doesn't have the `project` scope, and re-authing mid-build adds friction without changing the design.
 - **[The post-mortem](docs/postmortems/)** — what happens after a P0 incident (the cache-TZ-bug).
 
 If you have 30 minutes:
