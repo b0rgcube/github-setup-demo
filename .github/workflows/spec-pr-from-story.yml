@@ -1,0 +1,360 @@
+name: spec-pr-from-story
+
+# Requirements-as-code: when a story issue is created, this workflow opens a
+# spec PR with a pre-filled stub at specs/F-{AREA}-{ISSUE#}-{slug}.md.
+#
+# The PR is the artifact developers (or AI teammates) check out to flesh out
+# the spec. It removes the "remember to write the spec" step from the
+# workflow and turns it into "fill in the PR that's already waiting for you."
+#
+# Triggers ONLY on issues with the `story` label. Bug / tech-debt / spike
+# templates do not auto-spawn spec PRs (they have their own paths).
+
+on:
+  issues:
+    types: [labeled, opened, edited]
+
+permissions:
+  contents: write       # to create the branch + commit the spec stub
+  pull-requests: write  # to open the PR
+  issues: write         # to comment back on the issue with a link to the PR
+
+concurrency:
+  group: spec-pr-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  open-spec-pr:
+    name: open or re-sync spec PR for story
+    runs-on: ubuntu-latest
+    # Only fire on `story` issues. Three triggers:
+    #   - `opened` with `story` label already attached (issue-template form)
+    #   - `labeled` with the `story` label being added
+    #   - `edited` on an issue that already carries the `story` label
+    if: |
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'story')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'story') ||
+      (github.event.action == 'edited' && contains(github.event.issue.labels.*.name, 'story'))
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect existing spec PR (and its branch)
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          branch_name="auto/spec-${ISSUE_NUMBER}"
+          if git ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
+            echo "Branch $branch_name already exists."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+            echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute area, slug, and F-ID
+        id: meta
+        if: steps.dedupe.outputs.already_exists == 'false'
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # AREA from the `code: <name>` label, mapped to a short uppercase code.
+          # Default to CORE if no area label is present.
+          area="CORE"
+          for label in $(echo '${{ toJson(github.event.issue.labels.*.name) }}' | jq -r '.[]'); do
+            case "$label" in
+              "code: backend")  area="CORE";   break ;;
+              "code: frontend") area="UX";     break ;;
+              "code: worker")   area="WORKER"; break ;;
+              "code: infra")    area="INFRA";  break ;;
+              "code: data")     area="DATA";   break ;;
+              "code: docs")     area="DOCS";   break ;;
+            esac
+          done
+
+          # Slug: strip the [Story] prefix; lowercase; non-alnum → -; squeeze; trim
+          slug=$(echo "$ISSUE_TITLE" \
+            | sed -E 's/^\[[Ss]tory\][[:space:]]*//' \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+            | cut -c1-50)
+
+          fid="F-${area}-$(printf '%03d' "$ISSUE_NUMBER")"
+          spec_path="specs/${fid}-${slug}.md"
+          branch="auto/spec-${ISSUE_NUMBER}"
+
+          {
+            echo "area=$area"
+            echo "slug=$slug"
+            echo "fid=$fid"
+            echo "spec_path=$spec_path"
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create branch and spec stub
+        if: steps.dedupe.outputs.already_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FID: ${{ steps.meta.outputs.fid }}
+          SLUG: ${{ steps.meta.outputs.slug }}
+          AREA: ${{ steps.meta.outputs.area }}
+          SPEC_PATH: ${{ steps.meta.outputs.spec_path }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          # Title without the [Story] prefix becomes the spec title.
+          spec_title=$(echo "$ISSUE_TITLE" | sed -E 's/^\[[Ss]tory\][[:space:]]*//')
+          today=$(date -u +%Y-%m-%d)
+
+          mkdir -p specs
+
+          # Write the spec stub. Heredoc keeps templating readable.
+          cat > "$SPEC_PATH" <<SPEC_EOF
+          ---
+          id: $FID
+          title: $spec_title
+          status: draft
+          owner: ${{ github.event.issue.user.login }}
+          created: $today
+          last-updated: $today
+          linked-story: "#$ISSUE_NUMBER"
+          risk: low
+          ---
+
+          # Feature: $spec_title
+
+          > **Auto-generated stub** by the spec-pr-from-story workflow.
+          > Edit this file in this PR to flesh out the spec, then mark the PR
+          > ready for review. The story body is reproduced below for context.
+
+          ## Behaviour
+
+          *(Plain English. Present tense. What the feature does — not how.)*
+
+          TODO: describe the behaviour.
+
+          ## Scenarios
+
+          ### SC-$(printf '%03d' "$ISSUE_NUMBER")-01 — Happy path: ...
+          - **Given** ...
+          - **When** ...
+          - **Then** ...
+
+          ### SC-$(printf '%03d' "$ISSUE_NUMBER")-02 — Edge case: ...
+          - **Given** ...
+          - **When** ...
+          - **Then** ...
+
+          ### SC-$(printf '%03d' "$ISSUE_NUMBER")-03 — Failure case: ...
+          - **Given** ...
+          - **When** ...
+          - **Then** ...
+
+          ## Out of Scope
+
+          *(What this feature does NOT do. Be specific.)*
+
+          - TODO
+
+          ## Glossary
+
+          *(Domain terms used above.)*
+
+          - **<Term>**: <definition>
+
+          ## Open Questions
+
+          | Question | Owner | Due | Status |
+          |----------|-------|-----|--------|
+          | TODO | | | open |
+
+          ## Engineering Questions
+
+          *(Questions for engineering. Never feasibility verdicts.)*
+
+          - TODO
+
+          ## Non-Functional Requirements
+
+          - **Performance**: TODO
+          - **Scale**: TODO
+          - **Availability**: TODO
+
+          ## Dependencies
+
+          - **Related specs**: TODO
+          - **Code modules**: TODO
+
+          ## Revision History
+
+          | Rev | Date | Author | Change |
+          |-----|------|--------|--------|
+          | 1   | $today | github-actions[bot] | Auto-generated stub from issue #$ISSUE_NUMBER |
+
+          ---
+
+          ## Source story (auto-copied from issue #$ISSUE_NUMBER)
+
+          *Title:* $ISSUE_TITLE
+
+          *Body:*
+
+          \`\`\`
+          $ISSUE_BODY
+          \`\`\`
+          SPEC_EOF
+
+          git add "$SPEC_PATH"
+          git commit -m "chore(spec): auto-stub for $FID from issue #$ISSUE_NUMBER
+
+          Generated by .github/workflows/spec-pr-from-story.yml.
+
+          Closes none yet — this PR adds the *spec*; the story (#$ISSUE_NUMBER)
+          is closed by the implementation PR that follows."
+          git push origin "$BRANCH"
+
+      - name: Open the spec PR
+        if: steps.dedupe.outputs.already_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FID: ${{ steps.meta.outputs.fid }}
+          SPEC_PATH: ${{ steps.meta.outputs.spec_path }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: |
+          set -euo pipefail
+          spec_title=$(echo '${{ github.event.issue.title }}' | sed -E 's/^\[[Ss]tory\][[:space:]]*//')
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "spec: $FID — $spec_title" \
+            --draft \
+            --body "$(cat <<BODY_EOF
+          ## Auto-generated spec stub
+
+          This PR was opened automatically when issue #$ISSUE_NUMBER was filed with the \`story\` label. The spec stub at \`$SPEC_PATH\` is ready for a developer (or AI teammate) to flesh out.
+
+          ### How to work this PR
+
+          \`\`\`bash
+          gh pr checkout <this-PR-number>
+          \$EDITOR $SPEC_PATH
+          # write the Behaviour, fill in the Scenarios, name the Open Questions
+          git commit -am 'spec: flesh out $FID'
+          git push
+          \`\`\`
+
+          When the spec is ready for review, mark this PR as **ready for review** (it's currently in draft state).
+
+          ### Linked
+
+          - Story: #$ISSUE_NUMBER
+          - Spec ID: \`$FID\`
+          - Spec file: \`$SPEC_PATH\`
+
+          ### Required checklist (for the eventual review)
+
+          - [ ] Behaviour section filled in
+          - [ ] At least 3 scenarios with stable IDs
+          - [ ] Out of Scope section populated (don't leave 'TODO')
+          - [ ] Engineering Questions are *questions*, not feasibility verdicts
+          - [ ] Linked story #$ISSUE_NUMBER acceptance criteria are reflected in the scenarios
+          - [ ] specs/index.md updated with the new entry
+
+          ---
+
+          *This PR is a conversation-starter. The spec it adds is a hypothesis until validation. See \`docs/WORKFLOW.md\` §3 (Spec) for the full spec lifecycle.*
+          BODY_EOF
+          )"
+
+      - name: Comment back on the issue
+        if: steps.dedupe.outputs.already_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FID: ${{ steps.meta.outputs.fid }}
+          SPEC_PATH: ${{ steps.meta.outputs.spec_path }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "✨ Spec PR opened automatically for **\`$FID\`** at \`$SPEC_PATH\`. Check the PR list — it's in draft. A developer (or the agentic team) can \`gh pr checkout\` it and flesh out the spec."
+
+      # ─── Re-sync path: issue edited after the spec PR exists ─────────────
+      - name: Re-sync the auto-generated 'Source story' block
+        if: steps.dedupe.outputs.already_exists == 'true' && github.event.action == 'edited'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          BRANCH: ${{ steps.dedupe.outputs.branch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+
+          # Find the spec file on this branch (we don't know the slug from
+          # this job context, so glob for it).
+          spec_file=$(git ls-files | grep -E "^specs/F-[A-Z]+-$(printf '%03d' "$ISSUE_NUMBER")-.+\.md\$" | head -1)
+          if [ -z "$spec_file" ]; then
+            echo "No matching spec file found on branch $BRANCH; nothing to re-sync."
+            exit 0
+          fi
+
+          # Replace everything from the '## Source story' heading to EOF with
+          # a freshly-generated block. The marker is stable; human-written
+          # content above it is preserved.
+          marker="## Source story (auto-copied from issue #$ISSUE_NUMBER)"
+          if ! grep -qF "$marker" "$spec_file"; then
+            echo "Source-story marker not found in $spec_file; not re-syncing to avoid clobbering human edits."
+            exit 0
+          fi
+
+          # Truncate the file at the marker line, then append a regenerated block.
+          awk -v m="$marker" 'BEGIN{p=1} index($0,m){p=0} p' "$spec_file" > "$spec_file.head"
+          {
+            cat "$spec_file.head"
+            cat <<SOURCE_EOF
+          $marker
+
+          *Title:* $ISSUE_TITLE
+
+          *Body:*
+
+          \`\`\`
+          $ISSUE_BODY
+          \`\`\`
+
+          *Last re-synced from the issue: $(date -u +%Y-%m-%dT%H:%M:%SZ)*
+          SOURCE_EOF
+          } > "$spec_file"
+          rm -f "$spec_file.head"
+
+          if git diff --quiet -- "$spec_file"; then
+            echo "Issue body unchanged from what's already on the branch; no re-sync commit needed."
+            exit 0
+          fi
+
+          git add "$spec_file"
+          git commit -m "chore(spec): re-sync source story for $spec_file from issue edit
+
+          Auto-regenerated the 'Source story' trailing block to reflect the
+          latest issue body. Human-written spec content above the marker is
+          untouched."
+          git push origin "$BRANCH"
+
+          gh issue comment "$ISSUE_NUMBER" --body "🔄 Spec PR re-synced: the **Source story** block in \`$spec_file\` now reflects the latest edits to this issue. Your in-progress spec content above that block was not touched."
