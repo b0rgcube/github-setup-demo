@@ -21,6 +21,7 @@ If you have 5 minutes:
 - **[The spec for F-CORE-001](specs/F-CORE-001-show-weather.md)** — how features are specified before code starts. Note the `SC-001-NN` scenario IDs; tests reference them via `@pytest.mark.scenario("SC-001-01")` markers.
 - **[Issues](../../issues)** — labels do the work of a Project board: priority (`P0`/`P1`/`P2`/`P3`), type (`story`/`bug`/`tech-debt`/`spike`), and code touched (`code: backend`/`code: frontend`/etc.). In real adoption, the team would pair this with a GitHub Project board (Backlog → Triaged → Ready → In Progress → Review → Done); the board wasn't created here because the demo token doesn't have the `project` scope, and re-authing mid-build adds friction without changing the design.
 - **[The post-mortem](docs/postmortems/)** — what happens after a P0 incident (the cache-TZ-bug).
+- **[Issue #16 → PR #17](../../issues/16)** — *requirements-as-code* in action. Filing the story auto-opened a draft spec PR with a pre-filled stub; the dev (or AI teammate) checks out that PR and writes the spec there. No "remember to write the spec" step. See `.github/workflows/spec-pr-from-story.yml`.
 
 If you have 30 minutes:
 
