@@ -47,14 +47,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          # Two questions: does the branch exist, and does an OPEN PR target it?
+          # We treat "branch but no open PR" as recoverable — delete the
+          # stranded branch and fall through to the create path. This handles
+          # the case where an earlier workflow run pushed the branch but
+          # failed before opening the PR (transient race).
           branch_name="auto/spec-${ISSUE_NUMBER}"
-          if git ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+          echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
+
+          open_pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$branch_name" --json number --jq '.[0].number // ""')
+
+          if [ -n "$open_pr" ]; then
             echo "already_exists=true" >> "$GITHUB_OUTPUT"
-            echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
-            echo "Branch $branch_name already exists."
+            echo "Open PR #$open_pr already targets $branch_name; will re-sync only."
+          elif git ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+            echo "Branch $branch_name exists but no open PR — deleting stranded branch and recreating."
+            git push origin --delete "$branch_name" || true
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
           else
             echo "already_exists=false" >> "$GITHUB_OUTPUT"
-            echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Compute area, slug, and F-ID
