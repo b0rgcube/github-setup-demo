@@ -89,7 +89,7 @@ TODO: describe the behaviour.
 
 ```
 ## User story
-As a CLI user, I want to run `weatherbot forecast <city>` and see a 5-day forecast (one row per day), so that I can plan ahead without checking each day separately.
+As a CLI user, I want to run `weatherbot forecast <city>` and see a 5-day forecast (one row per day), so that I can plan ahead without checking each day separately. This is updated spec.
 
 ## Acceptance criteria
 - `weatherbot forecast Copenhagen` prints 5 rows, one per upcoming day
@@ -108,3 +108,5 @@ As a CLI user, I want to run `weatherbot forecast <city>` and see a 5-day foreca
 ## Notes
 - Filed to test the spec-pr-from-story workflow. Expect a draft spec PR within ~30s of filing.
 ```
+
+*Last re-synced from the issue: 2026-06-17T09:04:39Z*
